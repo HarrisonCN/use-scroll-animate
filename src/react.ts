@@ -1,33 +1,13 @@
 /**
  * use-scroll-animate - React Integration
  * Provides useScrollAnimate and useScrollRef hooks for React applications.
- *
- * Note: This file uses a soft dependency on React.
- * Import from 'use-scroll-animate/react' in your React project.
  */
 
 import type { AnimateOptions } from './types';
 import { resolvePreset, resolveEasing } from './presets';
 
-// We use dynamic imports to avoid bundling React as a hard dependency
 type ReactRef<T> = { current: T | null };
 
-/**
- * useScrollAnimate - React Hook
- *
- * Returns a ref to attach to a DOM element. When the element enters the viewport,
- * the specified animation will be triggered.
- *
- * @example
- * ```tsx
- * import { useScrollAnimate } from 'use-scroll-animate/react';
- *
- * function MyComponent() {
- *   const ref = useScrollAnimate({ animation: 'fade-in-up', duration: 800 });
- *   return <div ref={ref}>Hello World</div>;
- * }
- * ```
- */
 export function createReactHooks(React: {
   useRef: <T>(initial: T | null) => ReactRef<T>;
   useEffect: (effect: () => (() => void) | void, deps?: unknown[]) => void;
@@ -47,18 +27,18 @@ export function createReactHooks(React: {
         threshold = 0.1,
         rootMargin = '0px',
         repeat = false,
+        parallax = {},
         onStart,
         onComplete,
         onEnter,
         onLeave,
+        onProgress,
       } = options;
 
       const preset = resolvePreset(animation);
       const easingValue = resolveEasing(easing);
-
       let animated = false;
 
-      // Set initial hidden state
       (el as HTMLElement).style.opacity = '0';
 
       const observer = new IntersectionObserver(
@@ -74,13 +54,15 @@ export function createReactHooks(React: {
                 const anim = el.animate(keyframes, {
                   duration,
                   delay,
-                  easing: animation === 'bounce' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : easingValue,
+                  easing: easingValue,
                   fill: 'both',
                 });
                 onStart?.(el);
                 anim.onfinish = () => onComplete?.(el);
                 animated = true;
-                if (!repeat) observer.unobserve(el);
+                if (!repeat && !Object.keys(parallax).length && !onProgress) {
+                  observer.unobserve(el);
+                }
               }
             } else {
               onLeave?.(el);
@@ -91,34 +73,47 @@ export function createReactHooks(React: {
             }
           });
         },
-        { threshold, rootMargin }
+        { threshold: typeof threshold === 'number' ? threshold : threshold[0], rootMargin }
       );
 
+      let progressObserver: IntersectionObserver | null = null;
+      if (Object.keys(parallax).length > 0 || onProgress) {
+        const thresholds = [];
+        for (let i = 0; i <= 100; i++) thresholds.push(i / 100);
+        
+        progressObserver = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              const progress = entry.intersectionRatio;
+              onProgress?.(el, progress);
+              
+              if (Object.keys(parallax).length > 0) {
+                const { x = 0, y = 0, rotate = 0, scale = 1, speed = 1 } = parallax;
+                const p = (progress - 0.5) * 2 * speed;
+                let transform = '';
+                if (x) transform += ` translateX(${typeof x === 'number' ? x * p + 'px' : 'calc(' + x + ' * ' + p + ')'})`;
+                if (y) transform += ` translateY(${typeof y === 'number' ? y * p + 'px' : 'calc(' + y + ' * ' + p + ')'})`;
+                if (rotate) transform += ` rotate(${rotate * p}deg)`;
+                if (scale !== 1) transform += ` scale(${1 + (scale - 1) * p})`;
+                (el as HTMLElement).style.transform = transform;
+              }
+            });
+          },
+          { threshold: thresholds, rootMargin }
+        );
+        progressObserver.observe(el);
+      }
+
       observer.observe(el);
-      return () => observer.disconnect();
+      return () => {
+        observer.disconnect();
+        progressObserver?.disconnect();
+      };
     }, []);
 
     return ref;
   }
 
-  /**
-   * useScrollStagger - Staggered animation for list items
-   *
-   * @example
-   * ```tsx
-   * import { createReactHooks } from 'use-scroll-animate/react';
-   * const { useScrollStagger } = createReactHooks(React);
-   *
-   * function List({ items }) {
-   *   const containerRef = useScrollStagger({ stagger: 100, animation: 'fade-in-up' });
-   *   return (
-   *     <ul ref={containerRef}>
-   *       {items.map(item => <li key={item.id}>{item.name}</li>)}
-   *     </ul>
-   *   );
-   * }
-   * ```
-   */
   function useScrollStagger(options: AnimateOptions & { stagger?: number } = {}) {
     const ref = React.useRef<Element>(null);
 
@@ -166,7 +161,7 @@ export function createReactHooks(React: {
             }
           });
         },
-        { threshold, rootMargin }
+        { threshold: typeof threshold === 'number' ? threshold : threshold[0], rootMargin }
       );
 
       observer.observe(container);

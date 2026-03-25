@@ -8,7 +8,7 @@ type KeyframeMap = {
     to: Record<string, string | number>;
 };
 export declare const PRESETS: Record<AnimationPreset, KeyframeMap>;
-export declare function resolvePreset(animation: AnimationPreset | CustomAnimation): KeyframeMap;
+export declare function resolvePreset(animation: AnimationPreset | AnimationPreset[] | CustomAnimation): KeyframeMap;
 /** Easing to CSS cubic-bezier mapping */
 export declare const EASING_MAP: Record<string, string>;
 export declare function resolveEasing(easing: string): string;

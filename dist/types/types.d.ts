@@ -3,7 +3,7 @@
  * A lightweight, high-performance scroll animation library
  */
 /** Built-in animation presets */
-export type AnimationPreset = 'fade-in' | 'fade-in-up' | 'fade-in-down' | 'fade-in-left' | 'fade-in-right' | 'zoom-in' | 'zoom-out' | 'flip-x' | 'flip-y' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'bounce' | 'rotate-in' | 'blur-in';
+export type AnimationPreset = 'fade-in' | 'fade-in-up' | 'fade-in-down' | 'fade-in-left' | 'fade-in-right' | 'zoom-in' | 'zoom-out' | 'flip-x' | 'flip-y' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'bounce' | 'rotate-in' | 'blur-in' | 'skew-in' | 'scale-x' | 'scale-y';
 /** Easing function types */
 export type EasingType = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'spring' | string;
 /** Keyframe definition for custom animations */
@@ -15,10 +15,23 @@ export interface CustomAnimation {
     from: AnimationKeyframe;
     to: AnimationKeyframe;
 }
+/** Parallax configuration */
+export interface ParallaxOptions {
+    /** Movement on X axis (e.g., '100px', '20%') */
+    x?: string | number;
+    /** Movement on Y axis (e.g., '100px', '20%') */
+    y?: string | number;
+    /** Rotation in degrees */
+    rotate?: number;
+    /** Scale factor */
+    scale?: number;
+    /** Speed multiplier (default: 1) */
+    speed?: number;
+}
 /** Per-element animation options */
 export interface AnimateOptions {
-    /** Animation preset name or custom animation object */
-    animation?: AnimationPreset | CustomAnimation;
+    /** Animation preset name, array of presets, or custom animation object */
+    animation?: AnimationPreset | AnimationPreset[] | CustomAnimation;
     /** Duration in milliseconds (default: 600) */
     duration?: number;
     /** Delay in milliseconds (default: 0) */
@@ -26,13 +39,15 @@ export interface AnimateOptions {
     /** Easing function (default: 'ease') */
     easing?: EasingType;
     /** Intersection threshold 0-1 (default: 0.1) */
-    threshold?: number;
+    threshold?: number | number[];
     /** Root margin for IntersectionObserver (default: '0px') */
     rootMargin?: string;
     /** Whether to replay animation each time element enters viewport (default: false) */
     repeat?: boolean;
     /** Stagger delay for child elements in ms (default: 0) */
     stagger?: number;
+    /** Parallax effect configuration */
+    parallax?: ParallaxOptions;
     /** Callback fired when animation starts */
     onStart?: (element: Element) => void;
     /** Callback fired when animation completes */
@@ -41,11 +56,13 @@ export interface AnimateOptions {
     onEnter?: (element: Element) => void;
     /** Callback fired when element leaves viewport */
     onLeave?: (element: Element) => void;
+    /** Callback fired with scroll progress (0 to 1) */
+    onProgress?: (element: Element, progress: number) => void;
 }
 /** Global configuration for ScrollAnimate instance */
 export interface ScrollAnimateConfig {
     /** Default animation preset (default: 'fade-in-up') */
-    defaultAnimation?: AnimationPreset | CustomAnimation;
+    defaultAnimation?: AnimationPreset | AnimationPreset[] | CustomAnimation;
     /** Default duration in ms (default: 600) */
     defaultDuration?: number;
     /** Default delay in ms (default: 0) */
@@ -53,7 +70,7 @@ export interface ScrollAnimateConfig {
     /** Default easing (default: 'ease') */
     defaultEasing?: EasingType;
     /** Default threshold (default: 0.1) */
-    defaultThreshold?: number;
+    defaultThreshold?: number | number[];
     /** Default root margin (default: '0px') */
     defaultRootMargin?: string;
     /** Whether animations replay by default (default: false) */
@@ -75,6 +92,7 @@ export interface AnimatedElement {
     options: Required<AnimateOptions>;
     observer: IntersectionObserver;
     animated: boolean;
+    progressObserver?: IntersectionObserver;
 }
 /** ScrollAnimate public API */
 export interface ScrollAnimateInstance {

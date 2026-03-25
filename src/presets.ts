@@ -75,12 +75,51 @@ export const PRESETS: Record<AnimationPreset, KeyframeMap> = {
     from: { opacity: 0, filter: 'blur(12px)' },
     to: { opacity: 1, filter: 'blur(0px)' },
   },
+  'skew-in': {
+    from: { opacity: 0, transform: 'skewX(20deg) translateX(30px)' },
+    to: { opacity: 1, transform: 'skewX(0deg) translateX(0)' },
+  },
+  'scale-x': {
+    from: { transform: 'scaleX(0)' },
+    to: { transform: 'scaleX(1)' },
+  },
+  'scale-y': {
+    from: { transform: 'scaleY(0)' },
+    to: { transform: 'scaleY(1)' },
+  },
 };
 
-export function resolvePreset(animation: AnimationPreset | CustomAnimation): KeyframeMap {
+export function resolvePreset(animation: AnimationPreset | AnimationPreset[] | CustomAnimation): KeyframeMap {
   if (typeof animation === 'string') {
     return PRESETS[animation] ?? PRESETS['fade-in-up'];
   }
+  
+  if (Array.isArray(animation)) {
+    const combined: KeyframeMap = { from: {}, to: {} };
+    animation.forEach(name => {
+      const preset = PRESETS[name];
+      if (preset) {
+        // Merge from properties
+        Object.entries(preset.from).forEach(([key, val]) => {
+          if (key === 'transform' && combined.from[key]) {
+            combined.from[key] = `${combined.from[key]} ${val}`;
+          } else {
+            combined.from[key] = val;
+          }
+        });
+        // Merge to properties
+        Object.entries(preset.to).forEach(([key, val]) => {
+          if (key === 'transform' && combined.to[key]) {
+            combined.to[key] = `${combined.to[key]} ${val}`;
+          } else {
+            combined.to[key] = val;
+          }
+        });
+      }
+    });
+    return combined;
+  }
+  
   return animation;
 }
 

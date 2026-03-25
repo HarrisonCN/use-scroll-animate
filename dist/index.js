@@ -71,11 +71,50 @@ const PRESETS = {
         from: { opacity: 0, filter: 'blur(12px)' },
         to: { opacity: 1, filter: 'blur(0px)' },
     },
+    'skew-in': {
+        from: { opacity: 0, transform: 'skewX(20deg) translateX(30px)' },
+        to: { opacity: 1, transform: 'skewX(0deg) translateX(0)' },
+    },
+    'scale-x': {
+        from: { transform: 'scaleX(0)' },
+        to: { transform: 'scaleX(1)' },
+    },
+    'scale-y': {
+        from: { transform: 'scaleY(0)' },
+        to: { transform: 'scaleY(1)' },
+    },
 };
 function resolvePreset(animation) {
     var _a;
     if (typeof animation === 'string') {
         return (_a = PRESETS[animation]) !== null && _a !== void 0 ? _a : PRESETS['fade-in-up'];
+    }
+    if (Array.isArray(animation)) {
+        const combined = { from: {}, to: {} };
+        animation.forEach(name => {
+            const preset = PRESETS[name];
+            if (preset) {
+                // Merge from properties
+                Object.entries(preset.from).forEach(([key, val]) => {
+                    if (key === 'transform' && combined.from[key]) {
+                        combined.from[key] = `${combined.from[key]} ${val}`;
+                    }
+                    else {
+                        combined.from[key] = val;
+                    }
+                });
+                // Merge to properties
+                Object.entries(preset.to).forEach(([key, val]) => {
+                    if (key === 'transform' && combined.to[key]) {
+                        combined.to[key] = `${combined.to[key]} ${val}`;
+                    }
+                    else {
+                        combined.to[key] = val;
+                    }
+                });
+            }
+        });
+        return combined;
     }
     return animation;
 }
@@ -114,34 +153,52 @@ const DEFAULT_CONFIG = {
 };
 const DEFAULT_OPTIONS = {
     stagger: 0,
+    parallax: {},
     onStart: () => undefined,
     onComplete: () => undefined,
     onEnter: () => undefined,
     onLeave: () => undefined,
+    onProgress: () => undefined,
 };
 function parseDataAttributes(el, config) {
     const dataset = el.dataset;
     const opts = {};
-    if (dataset.saAnimation)
-        opts.animation = dataset.saAnimation;
+    if (dataset.saAnimation) {
+        const anim = dataset.saAnimation;
+        opts.animation = anim.includes(',')
+            ? anim.split(',').map(s => s.trim())
+            : anim;
+    }
     if (dataset.saDuration)
         opts.duration = parseInt(dataset.saDuration, 10);
     if (dataset.saDelay)
         opts.delay = parseInt(dataset.saDelay, 10);
     if (dataset.saEasing)
         opts.easing = dataset.saEasing;
-    if (dataset.saThreshold)
-        opts.threshold = parseFloat(dataset.saThreshold);
+    if (dataset.saThreshold) {
+        const t = dataset.saThreshold;
+        opts.threshold = t.includes(',') ? t.split(',').map(parseFloat) : parseFloat(t);
+    }
     if (dataset.saRootMargin)
         opts.rootMargin = dataset.saRootMargin;
     if (dataset.saRepeat !== undefined)
         opts.repeat = dataset.saRepeat !== 'false';
     if (dataset.saStagger)
         opts.stagger = parseInt(dataset.saStagger, 10);
+    // Parallax attributes
+    if (dataset.saParallaxX || dataset.saParallaxY || dataset.saParallaxRotate || dataset.saParallaxScale) {
+        opts.parallax = {
+            x: dataset.saParallaxX,
+            y: dataset.saParallaxY,
+            rotate: dataset.saParallaxRotate ? parseFloat(dataset.saParallaxRotate) : undefined,
+            scale: dataset.saParallaxScale ? parseFloat(dataset.saParallaxScale) : undefined,
+            speed: dataset.saParallaxSpeed ? parseFloat(dataset.saParallaxSpeed) : 1,
+        };
+    }
     return mergeOptions(opts, config);
 }
 function mergeOptions(opts, config) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
     return {
         animation: (_a = opts.animation) !== null && _a !== void 0 ? _a : config.defaultAnimation,
         duration: (_b = opts.duration) !== null && _b !== void 0 ? _b : config.defaultDuration,
@@ -151,10 +208,12 @@ function mergeOptions(opts, config) {
         rootMargin: (_f = opts.rootMargin) !== null && _f !== void 0 ? _f : config.defaultRootMargin,
         repeat: (_g = opts.repeat) !== null && _g !== void 0 ? _g : config.defaultRepeat,
         stagger: (_h = opts.stagger) !== null && _h !== void 0 ? _h : DEFAULT_OPTIONS.stagger,
-        onStart: (_j = opts.onStart) !== null && _j !== void 0 ? _j : DEFAULT_OPTIONS.onStart,
-        onComplete: (_k = opts.onComplete) !== null && _k !== void 0 ? _k : DEFAULT_OPTIONS.onComplete,
-        onEnter: (_l = opts.onEnter) !== null && _l !== void 0 ? _l : DEFAULT_OPTIONS.onEnter,
-        onLeave: (_m = opts.onLeave) !== null && _m !== void 0 ? _m : DEFAULT_OPTIONS.onLeave,
+        parallax: (_j = opts.parallax) !== null && _j !== void 0 ? _j : DEFAULT_OPTIONS.parallax,
+        onStart: (_k = opts.onStart) !== null && _k !== void 0 ? _k : DEFAULT_OPTIONS.onStart,
+        onComplete: (_l = opts.onComplete) !== null && _l !== void 0 ? _l : DEFAULT_OPTIONS.onComplete,
+        onEnter: (_m = opts.onEnter) !== null && _m !== void 0 ? _m : DEFAULT_OPTIONS.onEnter,
+        onLeave: (_o = opts.onLeave) !== null && _o !== void 0 ? _o : DEFAULT_OPTIONS.onLeave,
+        onProgress: (_p = opts.onProgress) !== null && _p !== void 0 ? _p : DEFAULT_OPTIONS.onProgress,
     };
 }
 function resolveTargets(target) {
@@ -182,7 +241,6 @@ function runAnimation(el, opts, config, staggerIndex = 0) {
     const preset = resolvePreset(animation);
     const easingValue = resolveEasing(easing);
     if (config.useClassNames) {
-        // CSS class-based mode
         if (totalDelay > 0) {
             el.style.animationDelay = `${totalDelay}ms`;
         }
@@ -192,7 +250,6 @@ function runAnimation(el, opts, config, staggerIndex = 0) {
         setTimeout(() => onComplete(el), duration + totalDelay);
         return;
     }
-    // Web Animations API mode
     const keyframes = [
         preset.from,
         preset.to,
@@ -203,13 +260,23 @@ function runAnimation(el, opts, config, staggerIndex = 0) {
         easing: easingValue,
         fill: 'both',
     };
-    // Special bounce easing
-    if (animation === 'bounce') {
-        timing.easing = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
-    }
     const anim = el.animate(keyframes, timing);
     onStart(el);
     anim.onfinish = () => onComplete(el);
+}
+function applyParallax(el, progress, parallax) {
+    const { x = 0, y = 0, rotate = 0, scale = 1, speed = 1 } = parallax;
+    const p = (progress - 0.5) * 2 * speed; // Range -1 to 1
+    let transform = '';
+    if (x)
+        transform += ` translateX(${typeof x === 'number' ? x * p + 'px' : 'calc(' + x + ' * ' + p + ')'})`;
+    if (y)
+        transform += ` translateY(${typeof y === 'number' ? y * p + 'px' : 'calc(' + y + ' * ' + p + ')'})`;
+    if (rotate)
+        transform += ` rotate(${rotate * p}deg)`;
+    if (scale !== 1)
+        transform += ` scale(${1 + (scale - 1) * p})`;
+    el.style.transform = transform;
 }
 function hideElement(el, config) {
     if (config.useClassNames) {
@@ -232,7 +299,6 @@ function createScrollAnimate(userConfig = {}) {
                 if (entry.isIntersecting) {
                     opts.onEnter(entry.target);
                     if (!record.animated || opts.repeat) {
-                        // Determine stagger index among siblings
                         const parent = entry.target.parentElement;
                         let staggerIndex = 0;
                         if (parent && opts.stagger > 0) {
@@ -243,12 +309,11 @@ function createScrollAnimate(userConfig = {}) {
                             runAnimation(entry.target, opts, config, staggerIndex);
                         }
                         else {
-                            // Skip animation but still show element
                             entry.target.style.opacity = '1';
                             entry.target.style.transform = '';
                         }
                         record.animated = true;
-                        if (!opts.repeat) {
+                        if (!opts.repeat && !Object.keys(opts.parallax).length && opts.onProgress === DEFAULT_OPTIONS.onProgress) {
                             record.observer.unobserve(entry.target);
                         }
                     }
@@ -262,7 +327,26 @@ function createScrollAnimate(userConfig = {}) {
                 }
             });
         }, {
-            threshold: opts.threshold,
+            threshold: typeof opts.threshold === 'number' ? opts.threshold : opts.threshold[0],
+            rootMargin: opts.rootMargin,
+            root: config.root,
+        });
+    }
+    function createProgressObserver(el, opts) {
+        // Create a list of thresholds for smooth progress tracking
+        const thresholds = [];
+        for (let i = 0; i <= 100; i++)
+            thresholds.push(i / 100);
+        return new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                const progress = entry.intersectionRatio;
+                opts.onProgress(el, progress);
+                if (Object.keys(opts.parallax).length > 0) {
+                    applyParallax(el, progress, opts.parallax);
+                }
+            });
+        }, {
+            threshold: thresholds,
             rootMargin: opts.rootMargin,
             root: config.root,
         });
@@ -275,7 +359,18 @@ function createScrollAnimate(userConfig = {}) {
         }
         const observer = createObserver(opts);
         observer.observe(el);
-        registry.set(el, { element: el, options: opts, observer, animated: false });
+        let progressObserver;
+        if (Object.keys(opts.parallax).length > 0 || opts.onProgress !== DEFAULT_OPTIONS.onProgress) {
+            progressObserver = createProgressObserver(el, opts);
+            progressObserver.observe(el);
+        }
+        registry.set(el, {
+            element: el,
+            options: opts,
+            observer,
+            animated: false,
+            progressObserver
+        });
     }
     const instance = {
         observe(target, options = {}) {
@@ -286,9 +381,11 @@ function createScrollAnimate(userConfig = {}) {
         unobserve(target) {
             const elements = resolveTargets(target);
             elements.forEach((el) => {
+                var _a;
                 const record = registry.get(el);
                 if (record) {
                     record.observer.unobserve(el);
+                    (_a = record.progressObserver) === null || _a === void 0 ? void 0 : _a.unobserve(el);
                     registry.delete(el);
                 }
             });
@@ -302,7 +399,9 @@ function createScrollAnimate(userConfig = {}) {
         },
         destroy() {
             registry.forEach((record) => {
+                var _a;
                 record.observer.disconnect();
+                (_a = record.progressObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
             });
             registry.clear();
         },
@@ -333,25 +432,6 @@ function createScrollAnimate(userConfig = {}) {
 /**
  * use-scroll-animate - React Integration
  * Provides useScrollAnimate and useScrollRef hooks for React applications.
- *
- * Note: This file uses a soft dependency on React.
- * Import from 'use-scroll-animate/react' in your React project.
- */
-/**
- * useScrollAnimate - React Hook
- *
- * Returns a ref to attach to a DOM element. When the element enters the viewport,
- * the specified animation will be triggered.
- *
- * @example
- * ```tsx
- * import { useScrollAnimate } from 'use-scroll-animate/react';
- *
- * function MyComponent() {
- *   const ref = useScrollAnimate({ animation: 'fade-in-up', duration: 800 });
- *   return <div ref={ref}>Hello World</div>;
- * }
- * ```
  */
 function createReactHooks(React) {
     function useScrollAnimate(options = {}) {
@@ -360,11 +440,10 @@ function createReactHooks(React) {
             const el = ref.current;
             if (!el)
                 return;
-            const { animation = 'fade-in-up', duration = 600, delay = 0, easing = 'ease', threshold = 0.1, rootMargin = '0px', repeat = false, onStart, onComplete, onEnter, onLeave, } = options;
+            const { animation = 'fade-in-up', duration = 600, delay = 0, easing = 'ease', threshold = 0.1, rootMargin = '0px', repeat = false, parallax = {}, onStart, onComplete, onEnter, onLeave, onProgress, } = options;
             const preset = resolvePreset(animation);
             const easingValue = resolveEasing(easing);
             let animated = false;
-            // Set initial hidden state
             el.style.opacity = '0';
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach((entry) => {
@@ -378,14 +457,15 @@ function createReactHooks(React) {
                             const anim = el.animate(keyframes, {
                                 duration,
                                 delay,
-                                easing: animation === 'bounce' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : easingValue,
+                                easing: easingValue,
                                 fill: 'both',
                             });
                             onStart === null || onStart === void 0 ? void 0 : onStart(el);
                             anim.onfinish = () => onComplete === null || onComplete === void 0 ? void 0 : onComplete(el);
                             animated = true;
-                            if (!repeat)
+                            if (!repeat && !Object.keys(parallax).length && !onProgress) {
                                 observer.unobserve(el);
+                            }
                         }
                     }
                     else {
@@ -396,30 +476,42 @@ function createReactHooks(React) {
                         }
                     }
                 });
-            }, { threshold, rootMargin });
+            }, { threshold: typeof threshold === 'number' ? threshold : threshold[0], rootMargin });
+            let progressObserver = null;
+            if (Object.keys(parallax).length > 0 || onProgress) {
+                const thresholds = [];
+                for (let i = 0; i <= 100; i++)
+                    thresholds.push(i / 100);
+                progressObserver = new IntersectionObserver((entries) => {
+                    entries.forEach((entry) => {
+                        const progress = entry.intersectionRatio;
+                        onProgress === null || onProgress === void 0 ? void 0 : onProgress(el, progress);
+                        if (Object.keys(parallax).length > 0) {
+                            const { x = 0, y = 0, rotate = 0, scale = 1, speed = 1 } = parallax;
+                            const p = (progress - 0.5) * 2 * speed;
+                            let transform = '';
+                            if (x)
+                                transform += ` translateX(${typeof x === 'number' ? x * p + 'px' : 'calc(' + x + ' * ' + p + ')'})`;
+                            if (y)
+                                transform += ` translateY(${typeof y === 'number' ? y * p + 'px' : 'calc(' + y + ' * ' + p + ')'})`;
+                            if (rotate)
+                                transform += ` rotate(${rotate * p}deg)`;
+                            if (scale !== 1)
+                                transform += ` scale(${1 + (scale - 1) * p})`;
+                            el.style.transform = transform;
+                        }
+                    });
+                }, { threshold: thresholds, rootMargin });
+                progressObserver.observe(el);
+            }
             observer.observe(el);
-            return () => observer.disconnect();
+            return () => {
+                observer.disconnect();
+                progressObserver === null || progressObserver === void 0 ? void 0 : progressObserver.disconnect();
+            };
         }, []);
         return ref;
     }
-    /**
-     * useScrollStagger - Staggered animation for list items
-     *
-     * @example
-     * ```tsx
-     * import { createReactHooks } from 'use-scroll-animate/react';
-     * const { useScrollStagger } = createReactHooks(React);
-     *
-     * function List({ items }) {
-     *   const containerRef = useScrollStagger({ stagger: 100, animation: 'fade-in-up' });
-     *   return (
-     *     <ul ref={containerRef}>
-     *       {items.map(item => <li key={item.id}>{item.name}</li>)}
-     *     </ul>
-     *   );
-     * }
-     * ```
-     */
     function useScrollStagger(options = {}) {
         const ref = React.useRef(null);
         React.useEffect(() => {
@@ -449,7 +541,7 @@ function createReactHooks(React) {
                         observer.unobserve(container);
                     }
                 });
-            }, { threshold, rootMargin });
+            }, { threshold: typeof threshold === 'number' ? threshold : threshold[0], rootMargin });
             observer.observe(container);
             return () => observer.disconnect();
         }, []);
@@ -461,50 +553,17 @@ function createReactHooks(React) {
 /**
  * use-scroll-animate - Vue 3 Integration
  * Provides useScrollAnimate composable for Vue 3 applications.
- *
- * Note: This file uses a soft dependency on Vue 3.
- * Import from 'use-scroll-animate/vue' in your Vue project.
- */
-/**
- * Factory function for Vue 3 composables.
- * Pass Vue's ref and onMounted/onUnmounted to create the composables.
- *
- * @example
- * ```ts
- * // In your Vue project:
- * import { ref, onMounted, onUnmounted } from 'vue';
- * import { createVueComposables } from 'use-scroll-animate/vue';
- *
- * const { useScrollAnimate } = createVueComposables({ ref, onMounted, onUnmounted });
- * ```
  */
 function createVueComposables(Vue) {
-    /**
-     * useScrollAnimate - Vue 3 Composable
-     *
-     * @example
-     * ```vue
-     * <template>
-     *   <div :ref="el => animateRef = el">Hello World</div>
-     * </template>
-     *
-     * <script setup>
-     * import { ref, onMounted, onUnmounted } from 'vue';
-     * import { createVueComposables } from 'use-scroll-animate/vue';
-     *
-     * const { useScrollAnimate } = createVueComposables({ ref, onMounted, onUnmounted });
-     * const { animateRef } = useScrollAnimate({ animation: 'fade-in-up' });
-     * </script>
-     * ```
-     */
     function useScrollAnimate(options = {}) {
         const animateRef = Vue.ref(null);
         let observer = null;
+        let progressObserver = null;
         Vue.onMounted(() => {
             const el = animateRef.value;
             if (!el)
                 return;
-            const { animation = 'fade-in-up', duration = 600, delay = 0, easing = 'ease', threshold = 0.1, rootMargin = '0px', repeat = false, onStart, onComplete, onEnter, onLeave, } = options;
+            const { animation = 'fade-in-up', duration = 600, delay = 0, easing = 'ease', threshold = 0.1, rootMargin = '0px', repeat = false, parallax = {}, onStart, onComplete, onEnter, onLeave, onProgress, } = options;
             const preset = resolvePreset(animation);
             const easingValue = resolveEasing(easing);
             let animated = false;
@@ -517,14 +576,15 @@ function createVueComposables(Vue) {
                             const anim = el.animate([preset.from, preset.to], {
                                 duration,
                                 delay,
-                                easing: animation === 'bounce' ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : easingValue,
+                                easing: easingValue,
                                 fill: 'both',
                             });
                             onStart === null || onStart === void 0 ? void 0 : onStart(el);
                             anim.onfinish = () => onComplete === null || onComplete === void 0 ? void 0 : onComplete(el);
                             animated = true;
-                            if (!repeat)
+                            if (!repeat && !Object.keys(parallax).length && !onProgress) {
                                 observer === null || observer === void 0 ? void 0 : observer.unobserve(el);
+                            }
                         }
                     }
                     else {
@@ -535,11 +595,38 @@ function createVueComposables(Vue) {
                         }
                     }
                 });
-            }, { threshold, rootMargin });
+            }, { threshold: typeof threshold === 'number' ? threshold : threshold[0], rootMargin });
+            if (Object.keys(parallax).length > 0 || onProgress) {
+                const thresholds = [];
+                for (let i = 0; i <= 100; i++)
+                    thresholds.push(i / 100);
+                progressObserver = new IntersectionObserver((entries) => {
+                    entries.forEach((entry) => {
+                        const progress = entry.intersectionRatio;
+                        onProgress === null || onProgress === void 0 ? void 0 : onProgress(el, progress);
+                        if (Object.keys(parallax).length > 0) {
+                            const { x = 0, y = 0, rotate = 0, scale = 1, speed = 1 } = parallax;
+                            const p = (progress - 0.5) * 2 * speed;
+                            let transform = '';
+                            if (x)
+                                transform += ` translateX(${typeof x === 'number' ? x * p + 'px' : 'calc(' + x + ' * ' + p + ')'})`;
+                            if (y)
+                                transform += ` translateY(${typeof y === 'number' ? y * p + 'px' : 'calc(' + y + ' * ' + p + ')'})`;
+                            if (rotate)
+                                transform += ` rotate(${rotate * p}deg)`;
+                            if (scale !== 1)
+                                transform += ` scale(${1 + (scale - 1) * p})`;
+                            el.style.transform = transform;
+                        }
+                    });
+                }, { threshold: thresholds, rootMargin });
+                progressObserver.observe(el);
+            }
             observer.observe(el);
         });
         Vue.onUnmounted(() => {
             observer === null || observer === void 0 ? void 0 : observer.disconnect();
+            progressObserver === null || progressObserver === void 0 ? void 0 : progressObserver.disconnect();
         });
         return { animateRef };
     }

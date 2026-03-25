@@ -111,13 +111,14 @@ const { animateRef: titleRef } = useScrollAnimate({
 
 ## Built-in Animations
 
-Choose from 16 highly optimized built-in presets:
+Choose from 19 highly optimized built-in presets:
 
 - `fade-in`, `fade-in-up`, `fade-in-down`, `fade-in-left`, `fade-in-right`
 - `zoom-in`, `zoom-out`
 - `slide-up`, `slide-down`, `slide-left`, `slide-right`
 - `flip-x`, `flip-y`
 - `bounce`, `rotate-in`, `blur-in`
+- `skew-in`, `scale-x`, `scale-y`
 
 ## Configuration Options
 
@@ -125,15 +126,56 @@ You can pass these options via JavaScript or as `data-sa-*` attributes in HTML.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `animation` | `string` \| `object` | `'fade-in-up'` | Preset name or custom keyframes |
+| `animation` | `string` \| `string[]` \| `object` | `['fade-in-up']` | Preset name, array of presets, or custom keyframes |
 | `duration` | `number` | `600` | Animation duration in ms |
 | `delay` | `number` | `0` | Delay before animation starts in ms |
-| `easing` | `string` | `'ease'` | CSS easing function (`linear`, `ease-out`, `spring`, etc.) |
-| `threshold` | `number` | `0.1` | Intersection threshold (0 to 1) |
+| `easing` | `string` | `ease` | CSS easing function (`linear`, `ease-out`, `spring`, etc.) |
+| `threshold` | `number` \| `number[]` | `0.1` | Intersection threshold (0 to 1) or array for progress |
+| `rootMargin` | `string` | `0px` | Root margin for IntersectionObserver |
 | `repeat` | `boolean` | `false` | Replay animation every time it enters viewport |
 | `stagger` | `number` | `0` | Delay between sibling elements in ms |
+| `parallax` | `object` | `{}` | Parallax effect configuration (x, y, rotate, scale, speed) |
+| `onProgress` | `(el, progress) => void` | `undefined` | Callback with scroll progress (0 to 1) |
 
 ## Advanced Usage
+
+### Multiple Animations
+
+Combine multiple built-in presets for richer effects. For example, `['fade-in-up', 'zoom-in']`.
+
+```html
+<div data-sa data-sa-animation="fade-in-up, zoom-in" data-sa-duration="1200">
+  I will fade in from bottom and zoom in!
+</div>
+```
+
+### Parallax Effect
+
+Apply a parallax effect based on scroll position. Use `data-sa-parallax-x`, `data-sa-parallax-y`, `data-sa-parallax-rotate`, `data-sa-parallax-scale`.
+
+```html
+<div data-sa data-sa-parallax-y="-100px" data-sa-parallax-speed="0.5">
+  I will move up 100px as you scroll!
+</div>
+
+<div data-sa data-sa-parallax-rotate="30" data-sa-parallax-speed="0.8">
+  I will rotate 30 degrees as you scroll!
+</div>
+```
+
+### Scroll Progress Listener
+
+Get real-time scroll progress (0 to 1) for an element.
+
+```javascript
+import ScrollAnimate from 'use-scroll-animate';
+
+ScrollAnimate.observe('.progress-bar', {
+  onProgress: (el, progress) => {
+    (el as HTMLElement).style.width = `${progress * 100}%`;
+  }
+});
+```
 
 ### Custom Animations
 

@@ -9,6 +9,7 @@ import type {
   AnimatedElement,
   ScrollAnimateConfig,
   ScrollAnimateInstance,
+  ParallaxOptions,
 } from './types';
 import { resolvePreset, resolveEasing } from './presets';
 
@@ -36,24 +37,45 @@ const DEFAULT_OPTIONS: Required<AnimateOptions> = {
   rootMargin: '0px',
   repeat: false,
   stagger: 0,
+  parallax: {},
   onStart: () => undefined,
   onComplete: () => undefined,
   onEnter: () => undefined,
   onLeave: () => undefined,
+  onProgress: () => undefined,
 };
 
 function parseDataAttributes(el: Element, config: Required<ScrollAnimateConfig>): Required<AnimateOptions> {
   const dataset = (el as HTMLElement).dataset;
   const opts: AnimateOptions = {};
 
-  if (dataset.saAnimation) opts.animation = dataset.saAnimation as AnimateOptions['animation'];
+  if (dataset.saAnimation) {
+    const anim = dataset.saAnimation;
+    opts.animation = anim.includes(',') 
+      ? anim.split(',').map(s => s.trim()) as any 
+      : anim as any;
+  }
   if (dataset.saDuration) opts.duration = parseInt(dataset.saDuration, 10);
   if (dataset.saDelay) opts.delay = parseInt(dataset.saDelay, 10);
   if (dataset.saEasing) opts.easing = dataset.saEasing;
-  if (dataset.saThreshold) opts.threshold = parseFloat(dataset.saThreshold);
+  if (dataset.saThreshold) {
+    const t = dataset.saThreshold;
+    opts.threshold = t.includes(',') ? t.split(',').map(parseFloat) : parseFloat(t);
+  }
   if (dataset.saRootMargin) opts.rootMargin = dataset.saRootMargin;
   if (dataset.saRepeat !== undefined) opts.repeat = dataset.saRepeat !== 'false';
   if (dataset.saStagger) opts.stagger = parseInt(dataset.saStagger, 10);
+  
+  // Parallax attributes
+  if (dataset.saParallaxX || dataset.saParallaxY || dataset.saParallaxRotate || dataset.saParallaxScale) {
+    opts.parallax = {
+      x: dataset.saParallaxX,
+      y: dataset.saParallaxY,
+      rotate: dataset.saParallaxRotate ? parseFloat(dataset.saParallaxRotate) : undefined,
+      scale: dataset.saParallaxScale ? parseFloat(dataset.saParallaxScale) : undefined,
+      speed: dataset.saParallaxSpeed ? parseFloat(dataset.saParallaxSpeed) : 1,
+    };
+  }
 
   return mergeOptions(opts, config);
 }
@@ -71,10 +93,12 @@ function mergeOptions(
     rootMargin: opts.rootMargin ?? config.defaultRootMargin,
     repeat: opts.repeat ?? config.defaultRepeat,
     stagger: opts.stagger ?? DEFAULT_OPTIONS.stagger,
+    parallax: opts.parallax ?? DEFAULT_OPTIONS.parallax,
     onStart: opts.onStart ?? DEFAULT_OPTIONS.onStart,
     onComplete: opts.onComplete ?? DEFAULT_OPTIONS.onComplete,
     onEnter: opts.onEnter ?? DEFAULT_OPTIONS.onEnter,
     onLeave: opts.onLeave ?? DEFAULT_OPTIONS.onLeave,
+    onProgress: opts.onProgress ?? DEFAULT_OPTIONS.onProgress,
   };
 }
 
@@ -110,7 +134,6 @@ function runAnimation(
   const easingValue = resolveEasing(easing);
 
   if (config.useClassNames) {
-    // CSS class-based mode
     if (totalDelay > 0) {
       (el as HTMLElement).style.animationDelay = `${totalDelay}ms`;
     }
@@ -121,7 +144,6 @@ function runAnimation(
     return;
   }
 
-  // Web Animations API mode
   const keyframes: Keyframe[] = [
     preset.from as Keyframe,
     preset.to as Keyframe,
@@ -134,14 +156,22 @@ function runAnimation(
     fill: 'both',
   };
 
-  // Special bounce easing
-  if (animation === 'bounce') {
-    timing.easing = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
-  }
-
   const anim = el.animate(keyframes, timing);
   onStart(el);
   anim.onfinish = () => onComplete(el);
+}
+
+function applyParallax(el: Element, progress: number, parallax: ParallaxOptions): void {
+  const { x = 0, y = 0, rotate = 0, scale = 1, speed = 1 } = parallax;
+  const p = (progress - 0.5) * 2 * speed; // Range -1 to 1
+  
+  let transform = '';
+  if (x) transform += ` translateX(${typeof x === 'number' ? x * p + 'px' : 'calc(' + x + ' * ' + p + ')'})`;
+  if (y) transform += ` translateY(${typeof y === 'number' ? y * p + 'px' : 'calc(' + y + ' * ' + p + ')'})`;
+  if (rotate) transform += ` rotate(${rotate * p}deg)`;
+  if (scale !== 1) transform += ` scale(${1 + (scale - 1) * p})`;
+  
+  (el as HTMLElement).style.transform = transform;
 }
 
 function hideElement(el: Element, config: Required<ScrollAnimateConfig>): void {
@@ -168,7 +198,6 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
             opts.onEnter(entry.target);
 
             if (!record.animated || opts.repeat) {
-              // Determine stagger index among siblings
               const parent = entry.target.parentElement;
               let staggerIndex = 0;
               if (parent && opts.stagger > 0) {
@@ -179,14 +208,12 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
               if (!config.disabled && !prefersReducedMotion()) {
                 runAnimation(entry.target, opts, config, staggerIndex);
               } else {
-                // Skip animation but still show element
                 (entry.target as HTMLElement).style.opacity = '1';
                 (entry.target as HTMLElement).style.transform = '';
               }
 
               record.animated = true;
-
-              if (!opts.repeat) {
+              if (!opts.repeat && !Object.keys(opts.parallax).length && opts.onProgress === DEFAULT_OPTIONS.onProgress) {
                 record.observer.unobserve(entry.target);
               }
             }
@@ -200,7 +227,31 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
         });
       },
       {
-        threshold: opts.threshold,
+        threshold: typeof opts.threshold === 'number' ? opts.threshold : opts.threshold[0],
+        rootMargin: opts.rootMargin,
+        root: config.root,
+      }
+    );
+  }
+
+  function createProgressObserver(el: Element, opts: Required<AnimateOptions>): IntersectionObserver {
+    // Create a list of thresholds for smooth progress tracking
+    const thresholds = [];
+    for (let i = 0; i <= 100; i++) thresholds.push(i / 100);
+
+    return new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const progress = entry.intersectionRatio;
+          opts.onProgress(el, progress);
+          
+          if (Object.keys(opts.parallax).length > 0) {
+            applyParallax(el, progress, opts.parallax);
+          }
+        });
+      },
+      {
+        threshold: thresholds,
         rootMargin: opts.rootMargin,
         root: config.root,
       }
@@ -217,7 +268,19 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
     const observer = createObserver(opts);
     observer.observe(el);
 
-    registry.set(el, { element: el, options: opts, observer, animated: false });
+    let progressObserver;
+    if (Object.keys(opts.parallax).length > 0 || opts.onProgress !== DEFAULT_OPTIONS.onProgress) {
+      progressObserver = createProgressObserver(el, opts);
+      progressObserver.observe(el);
+    }
+
+    registry.set(el, { 
+      element: el, 
+      options: opts, 
+      observer, 
+      animated: false,
+      progressObserver 
+    });
   }
 
   const instance: ScrollAnimateInstance = {
@@ -233,6 +296,7 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
         const record = registry.get(el);
         if (record) {
           record.observer.unobserve(el);
+          record.progressObserver?.unobserve(el);
           registry.delete(el);
         }
       });
@@ -249,6 +313,7 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
     destroy() {
       registry.forEach((record) => {
         record.observer.disconnect();
+        record.progressObserver?.disconnect();
       });
       registry.clear();
     },
