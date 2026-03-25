@@ -4,8 +4,8 @@
 
 **A lightweight (~2.9KB gzipped), dependency-free scroll animation library for the modern web.**
 
-[![npm version](https://img.shields.io/npm/v/use-scroll-animate.svg?style=flat-square)](https://www.npmjs.com/package/use-scroll-animate)
-[![npm downloads](https://img.shields.io/npm/dm/use-scroll-animate.svg?style=flat-square)](https://www.npmjs.com/package/use-scroll-animate)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/HarrisonCN/use-scroll-animate?style=flat-square)](https://github.com/HarrisonCN/use-scroll-animate/releases)
+[![GitHub repo size](https://img.shields.io/github/repo-size/HarrisonCN/use-scroll-animate?style=flat-square)](https://github.com/HarrisonCN/use-scroll-animate)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
