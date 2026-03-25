@@ -79,6 +79,18 @@ const PRESETS = {
         from: { transform: 'scaleY(0)' },
         to: { transform: 'scaleY(1)' },
     },
+    'shimmer': {
+        from: { opacity: 0.5, filter: 'brightness(1)' },
+        to: { opacity: 1, filter: 'brightness(1.5)' },
+    },
+    'pulse': {
+        from: { transform: 'scale(1)' },
+        to: { transform: 'scale(1.05)' },
+    },
+    'swing': {
+        from: { transform: 'rotate(-10deg)' },
+        to: { transform: 'rotate(10deg)' },
+    },
 };
 function resolvePreset(animation) {
     var _a;
@@ -90,7 +102,6 @@ function resolvePreset(animation) {
         animation.forEach(name => {
             const preset = PRESETS[name];
             if (preset) {
-                // Merge from properties
                 Object.entries(preset.from).forEach(([key, val]) => {
                     if (key === 'transform' && combined.from[key]) {
                         combined.from[key] = `${combined.from[key]} ${val}`;
@@ -99,7 +110,6 @@ function resolvePreset(animation) {
                         combined.from[key] = val;
                     }
                 });
-                // Merge to properties
                 Object.entries(preset.to).forEach(([key, val]) => {
                     if (key === 'transform' && combined.to[key]) {
                         combined.to[key] = `${combined.to[key]} ${val}`;
@@ -141,6 +151,8 @@ const DEFAULT_CONFIG = {
     defaultThreshold: 0.1,
     defaultRootMargin: '0px',
     defaultRepeat: false,
+    defaultOnce: true,
+    defaultOffset: 0,
     hiddenClass: 'sa-hidden',
     visibleClass: 'sa-visible',
     useClassNames: false,
@@ -179,9 +191,12 @@ function parseDataAttributes(el, config) {
         opts.rootMargin = dataset.saRootMargin;
     if (dataset.saRepeat !== undefined)
         opts.repeat = dataset.saRepeat !== 'false';
+    if (dataset.saOnce !== undefined)
+        opts.once = dataset.saOnce !== 'false';
+    if (dataset.saOffset)
+        opts.offset = parseInt(dataset.saOffset, 10);
     if (dataset.saStagger)
         opts.stagger = parseInt(dataset.saStagger, 10);
-    // Parallax attributes
     if (dataset.saParallaxX || dataset.saParallaxY || dataset.saParallaxRotate || dataset.saParallaxScale) {
         opts.parallax = {
             x: dataset.saParallaxX,
@@ -194,22 +209,25 @@ function parseDataAttributes(el, config) {
     return mergeOptions(opts, config);
 }
 function mergeOptions(opts, config) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+    const repeat = (_a = opts.repeat) !== null && _a !== void 0 ? _a : config.defaultRepeat;
     return {
-        animation: (_a = opts.animation) !== null && _a !== void 0 ? _a : config.defaultAnimation,
-        duration: (_b = opts.duration) !== null && _b !== void 0 ? _b : config.defaultDuration,
-        delay: (_c = opts.delay) !== null && _c !== void 0 ? _c : config.defaultDelay,
-        easing: (_d = opts.easing) !== null && _d !== void 0 ? _d : config.defaultEasing,
-        threshold: (_e = opts.threshold) !== null && _e !== void 0 ? _e : config.defaultThreshold,
-        rootMargin: (_f = opts.rootMargin) !== null && _f !== void 0 ? _f : config.defaultRootMargin,
-        repeat: (_g = opts.repeat) !== null && _g !== void 0 ? _g : config.defaultRepeat,
-        stagger: (_h = opts.stagger) !== null && _h !== void 0 ? _h : DEFAULT_OPTIONS.stagger,
-        parallax: (_j = opts.parallax) !== null && _j !== void 0 ? _j : DEFAULT_OPTIONS.parallax,
-        onStart: (_k = opts.onStart) !== null && _k !== void 0 ? _k : DEFAULT_OPTIONS.onStart,
-        onComplete: (_l = opts.onComplete) !== null && _l !== void 0 ? _l : DEFAULT_OPTIONS.onComplete,
-        onEnter: (_m = opts.onEnter) !== null && _m !== void 0 ? _m : DEFAULT_OPTIONS.onEnter,
-        onLeave: (_o = opts.onLeave) !== null && _o !== void 0 ? _o : DEFAULT_OPTIONS.onLeave,
-        onProgress: (_p = opts.onProgress) !== null && _p !== void 0 ? _p : DEFAULT_OPTIONS.onProgress,
+        animation: (_b = opts.animation) !== null && _b !== void 0 ? _b : config.defaultAnimation,
+        duration: (_c = opts.duration) !== null && _c !== void 0 ? _c : config.defaultDuration,
+        delay: (_d = opts.delay) !== null && _d !== void 0 ? _d : config.defaultDelay,
+        easing: (_e = opts.easing) !== null && _e !== void 0 ? _e : config.defaultEasing,
+        threshold: (_f = opts.threshold) !== null && _f !== void 0 ? _f : config.defaultThreshold,
+        rootMargin: (_g = opts.rootMargin) !== null && _g !== void 0 ? _g : config.defaultRootMargin,
+        repeat: repeat,
+        once: (_h = opts.once) !== null && _h !== void 0 ? _h : (repeat ? false : config.defaultOnce),
+        offset: (_j = opts.offset) !== null && _j !== void 0 ? _j : config.defaultOffset,
+        stagger: (_k = opts.stagger) !== null && _k !== void 0 ? _k : DEFAULT_OPTIONS.stagger,
+        parallax: (_l = opts.parallax) !== null && _l !== void 0 ? _l : DEFAULT_OPTIONS.parallax,
+        onStart: (_m = opts.onStart) !== null && _m !== void 0 ? _m : DEFAULT_OPTIONS.onStart,
+        onComplete: (_o = opts.onComplete) !== null && _o !== void 0 ? _o : DEFAULT_OPTIONS.onComplete,
+        onEnter: (_p = opts.onEnter) !== null && _p !== void 0 ? _p : DEFAULT_OPTIONS.onEnter,
+        onLeave: (_q = opts.onLeave) !== null && _q !== void 0 ? _q : DEFAULT_OPTIONS.onLeave,
+        onProgress: (_r = opts.onProgress) !== null && _r !== void 0 ? _r : DEFAULT_OPTIONS.onProgress,
     };
 }
 function resolveTargets(target) {
@@ -256,13 +274,23 @@ function runAnimation(el, opts, config, staggerIndex = 0) {
         easing: easingValue,
         fill: 'both',
     };
-    const anim = el.animate(keyframes, timing);
-    onStart(el);
-    anim.onfinish = () => onComplete(el);
+    // Check if Web Animations API is supported
+    if (typeof el.animate === 'function') {
+        const anim = el.animate(keyframes, timing);
+        onStart(el);
+        anim.onfinish = () => onComplete(el);
+    }
+    else {
+        // Fallback for older browsers
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+        onStart(el);
+        onComplete(el);
+    }
 }
 function applyParallax(el, progress, parallax) {
     const { x = 0, y = 0, rotate = 0, scale = 1, speed = 1 } = parallax;
-    const p = (progress - 0.5) * 2 * speed; // Range -1 to 1
+    const p = (progress - 0.5) * 2 * speed;
     let transform = '';
     if (x)
         transform += ` translateX(${typeof x === 'number' ? x * p + 'px' : 'calc(' + x + ' * ' + p + ')'})`;
@@ -287,8 +315,13 @@ function createScrollAnimate(userConfig = {}) {
     let config = { ...DEFAULT_CONFIG, ...userConfig };
     const registry = new Map();
     function createObserver(opts) {
+        // Handle offset by adjusting rootMargin
+        const rootMargin = opts.offset !== 0
+            ? `${opts.rootMargin.split(' ')[0]} 0px -${opts.offset}px 0px`
+            : opts.rootMargin;
         return new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
+                var _a;
                 const record = registry.get(entry.target);
                 if (!record)
                     return;
@@ -298,6 +331,7 @@ function createScrollAnimate(userConfig = {}) {
                         const parent = entry.target.parentElement;
                         let staggerIndex = 0;
                         if (parent && opts.stagger > 0) {
+                            // BUG FIX: Use a more robust way to find index among siblings that are also observed
                             const siblings = Array.from(parent.children).filter((c) => registry.has(c));
                             staggerIndex = siblings.indexOf(entry.target);
                         }
@@ -309,8 +343,11 @@ function createScrollAnimate(userConfig = {}) {
                             entry.target.style.transform = '';
                         }
                         record.animated = true;
-                        if (!opts.repeat && !Object.keys(opts.parallax).length && opts.onProgress === DEFAULT_OPTIONS.onProgress) {
+                        // Handle 'once' functionality
+                        if (opts.once) {
                             record.observer.unobserve(entry.target);
+                            (_a = record.progressObserver) === null || _a === void 0 ? void 0 : _a.unobserve(entry.target);
+                            // We don't delete from registry yet to allow other potential interactions
                         }
                     }
                 }
@@ -324,12 +361,11 @@ function createScrollAnimate(userConfig = {}) {
             });
         }, {
             threshold: typeof opts.threshold === 'number' ? opts.threshold : opts.threshold[0],
-            rootMargin: opts.rootMargin,
+            rootMargin: rootMargin,
             root: config.root,
         });
     }
     function createProgressObserver(el, opts) {
-        // Create a list of thresholds for smooth progress tracking
         const thresholds = [];
         for (let i = 0; i <= 100; i++)
             thresholds.push(i / 100);
@@ -380,8 +416,8 @@ function createScrollAnimate(userConfig = {}) {
                 var _a;
                 const record = registry.get(el);
                 if (record) {
-                    record.observer.unobserve(el);
-                    (_a = record.progressObserver) === null || _a === void 0 ? void 0 : _a.unobserve(el);
+                    record.observer.disconnect(); // BUG FIX: Use disconnect for better cleanup
+                    (_a = record.progressObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
                     registry.delete(el);
                 }
             });

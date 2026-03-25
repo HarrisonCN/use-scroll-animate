@@ -23,7 +23,10 @@ export type AnimationPreset =
   | 'blur-in'
   | 'skew-in'
   | 'scale-x'
-  | 'scale-y';
+  | 'scale-y'
+  | 'shimmer'
+  | 'pulse'
+  | 'swing';
 
 /** Easing function types */
 export type EasingType =
@@ -76,6 +79,10 @@ export interface AnimateOptions {
   rootMargin?: string;
   /** Whether to replay animation each time element enters viewport (default: false) */
   repeat?: boolean;
+  /** Whether to trigger animation only once (default: true if repeat is false) */
+  once?: boolean;
+  /** Offset in pixels from the viewport edge to trigger animation (default: 0) */
+  offset?: number;
   /** Stagger delay for child elements in ms (default: 0) */
   stagger?: number;
   /** Parallax effect configuration */
@@ -108,6 +115,10 @@ export interface ScrollAnimateConfig {
   defaultRootMargin?: string;
   /** Whether animations replay by default (default: false) */
   defaultRepeat?: boolean;
+  /** Default once setting (default: true) */
+  defaultOnce?: boolean;
+  /** Default offset in pixels (default: 0) */
+  defaultOffset?: number;
   /** CSS class added before animation (default: 'sa-hidden') */
   hiddenClass?: string;
   /** CSS class added when element is visible (default: 'sa-visible') */

@@ -3,7 +3,7 @@
  * A lightweight, high-performance scroll animation library
  */
 /** Built-in animation presets */
-export type AnimationPreset = 'fade-in' | 'fade-in-up' | 'fade-in-down' | 'fade-in-left' | 'fade-in-right' | 'zoom-in' | 'zoom-out' | 'flip-x' | 'flip-y' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'bounce' | 'rotate-in' | 'blur-in' | 'skew-in' | 'scale-x' | 'scale-y';
+export type AnimationPreset = 'fade-in' | 'fade-in-up' | 'fade-in-down' | 'fade-in-left' | 'fade-in-right' | 'zoom-in' | 'zoom-out' | 'flip-x' | 'flip-y' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'bounce' | 'rotate-in' | 'blur-in' | 'skew-in' | 'scale-x' | 'scale-y' | 'shimmer' | 'pulse' | 'swing';
 /** Easing function types */
 export type EasingType = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'spring' | string;
 /** Keyframe definition for custom animations */
@@ -44,6 +44,10 @@ export interface AnimateOptions {
     rootMargin?: string;
     /** Whether to replay animation each time element enters viewport (default: false) */
     repeat?: boolean;
+    /** Whether to trigger animation only once (default: true if repeat is false) */
+    once?: boolean;
+    /** Offset in pixels from the viewport edge to trigger animation (default: 0) */
+    offset?: number;
     /** Stagger delay for child elements in ms (default: 0) */
     stagger?: number;
     /** Parallax effect configuration */
@@ -75,6 +79,10 @@ export interface ScrollAnimateConfig {
     defaultRootMargin?: string;
     /** Whether animations replay by default (default: false) */
     defaultRepeat?: boolean;
+    /** Default once setting (default: true) */
+    defaultOnce?: boolean;
+    /** Default offset in pixels (default: 0) */
+    defaultOffset?: number;
     /** CSS class added before animation (default: 'sa-hidden') */
     hiddenClass?: string;
     /** CSS class added when element is visible (default: 'sa-visible') */

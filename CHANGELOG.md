@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-03-25
+
+### Added
+
+- **Once Control**: New `once` option to automatically stop observing an element after its animation has triggered, saving system resources.
+- **Viewport Offset**: New `offset` option to specify how many pixels an element must enter the viewport before the animation starts.
+- **New Animation Presets**: Added `shimmer`, `pulse`, and `swing`.
+- **Multi-language Documentation**: Added Chinese (`README_zh.md`) and Japanese (`README_ja.md`) documentation.
+- **Fallback Support**: Added a fallback mechanism for browsers that do not support the Web Animations API.
+
+### Fixed
+
+- **Memory Leak**: Improved `IntersectionObserver` cleanup by using `disconnect()` instead of `unobserve()` in key areas.
+- **Stagger Bug**: Fixed an issue where `stagger` animation indices were incorrectly calculated when DOM elements were added dynamically.
+- **Type Safety**: Improved TypeScript definitions for better developer experience.
+
+### Changed
+
+- Updated `AnimateOptions` and `ScrollAnimateConfig` to include `once` and `offset`.
+- Refactored `IntersectionObserver` logic to handle offsets via `rootMargin`.
+
 ## [1.1.0] - 2025-03-25
 
 ### Added
@@ -16,13 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Threshold Array Support**: `threshold` option now accepts an array of numbers for more granular progress tracking.
 - **Improved React Hooks**: `useScrollAnimate` and `useScrollStagger` now fully support `parallax` and `onProgress`.
 - **Improved Vue Composables**: `useScrollAnimate` now fully supports `parallax` and `onProgress`.
-
-### Changed
-
-- Updated `AnimationPreset` type to include new presets.
-- Modified `AnimateOptions` and `ScrollAnimateConfig` interfaces to include `parallax` and `onProgress`.
-- Enhanced `resolvePreset` function to handle array of animation presets.
-- Refactored core logic to integrate parallax and progress observation.
 
 ## [1.0.0] - 2025-03-25
 

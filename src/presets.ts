@@ -87,6 +87,18 @@ export const PRESETS: Record<AnimationPreset, KeyframeMap> = {
     from: { transform: 'scaleY(0)' },
     to: { transform: 'scaleY(1)' },
   },
+  'shimmer': {
+    from: { opacity: 0.5, filter: 'brightness(1)' },
+    to: { opacity: 1, filter: 'brightness(1.5)' },
+  },
+  'pulse': {
+    from: { transform: 'scale(1)' },
+    to: { transform: 'scale(1.05)' },
+  },
+  'swing': {
+    from: { transform: 'rotate(-10deg)' },
+    to: { transform: 'rotate(10deg)' },
+  },
 };
 
 export function resolvePreset(animation: AnimationPreset | AnimationPreset[] | CustomAnimation): KeyframeMap {
@@ -99,7 +111,6 @@ export function resolvePreset(animation: AnimationPreset | AnimationPreset[] | C
     animation.forEach(name => {
       const preset = PRESETS[name];
       if (preset) {
-        // Merge from properties
         Object.entries(preset.from).forEach(([key, val]) => {
           if (key === 'transform' && combined.from[key]) {
             combined.from[key] = `${combined.from[key]} ${val}`;
@@ -107,7 +118,6 @@ export function resolvePreset(animation: AnimationPreset | AnimationPreset[] | C
             combined.from[key] = val;
           }
         });
-        // Merge to properties
         Object.entries(preset.to).forEach(([key, val]) => {
           if (key === 'transform' && combined.to[key]) {
             combined.to[key] = `${combined.to[key]} ${val}`;
