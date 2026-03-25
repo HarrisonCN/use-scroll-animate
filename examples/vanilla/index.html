@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>use-scroll-animate — Vanilla JS Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #fff; }
+    .hero {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    .hero h1 { font-size: clamp(2rem, 6vw, 5rem); font-weight: 800; }
+    .hero p { font-size: 1.2rem; color: #aaa; margin-top: 1rem; }
+    .section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 6rem 2rem;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .card h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .card p { color: #aaa; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+    .badge {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .badge h3 { font-size: 1.1rem; margin-bottom: 0.3rem; }
+    .badge span { font-size: 0.85rem; opacity: 0.8; }
+    .scroll-hint { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); color: #666; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1 data-sa data-sa-animation="fade-in-down" data-sa-duration="1000">
+      use-scroll-animate
+    </h1>
+    <p data-sa data-sa-animation="fade-in-up" data-sa-delay="300">
+      Lightweight. Dependency-free. Blazing fast.
+    </p>
+  </div>
+
+  <div class="section">
+    <div class="card" data-sa data-sa-animation="fade-in-left">
+      <h2>Zero Dependencies</h2>
+      <p>Built entirely on native browser APIs — IntersectionObserver and the Web Animations API. No lodash, no jQuery, no bloat.</p>
+    </div>
+
+    <div class="card" data-sa data-sa-animation="fade-in-right" data-sa-delay="100">
+      <h2>TypeScript First</h2>
+      <p>Written in TypeScript with comprehensive type definitions. Enjoy full IntelliSense and type safety in your IDE.</p>
+    </div>
+
+    <div class="card" data-sa data-sa-animation="zoom-in" data-sa-delay="200">
+      <h2>Framework Agnostic</h2>
+      <p>Works with Vanilla JS, React, Vue, Svelte, and any other framework. First-class hooks and composables included.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="grid">
+      <div class="badge" data-sa data-sa-animation="fade-in-up" data-sa-stagger="80">
+        <h3>fade-in-up</h3>
+        <span>Classic entrance</span>
+      </div>
+      <div class="badge" data-sa data-sa-animation="zoom-in" data-sa-stagger="80">
+        <h3>zoom-in</h3>
+        <span>Scale reveal</span>
+      </div>
+      <div class="badge" data-sa data-sa-animation="flip-x" data-sa-stagger="80">
+        <h3>flip-x</h3>
+        <span>3D flip</span>
+      </div>
+      <div class="badge" data-sa data-sa-animation="blur-in" data-sa-stagger="80">
+        <h3>blur-in</h3>
+        <span>Focus reveal</span>
+      </div>
+      <div class="badge" data-sa data-sa-animation="bounce" data-sa-stagger="80">
+        <h3>bounce</h3>
+        <span>Spring physics</span>
+      </div>
+      <div class="badge" data-sa data-sa-animation="rotate-in" data-sa-stagger="80">
+        <h3>rotate-in</h3>
+        <span>Spin entrance</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="scroll-hint">↓ Scroll to see animations</p>
+
+  <script type="module">
+    import ScrollAnimate from '../../dist/index.esm.js';
+    ScrollAnimate.init();
+  </script>
+</body>
+</html>

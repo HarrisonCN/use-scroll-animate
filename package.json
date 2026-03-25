@@ -1,0 +1,35 @@
+{
+  "name": "use-scroll-animate",
+  "version": "1.0.0",
+  "description": "A lightweight, high-performance, dependency-free scroll animation library for modern web.",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "browser": "dist/index.umd.js",
+  "types": "dist/types/index.d.ts",
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "scroll",
+    "animation",
+    "intersection-observer",
+    "lightweight",
+    "vanilla-js",
+    "typescript",
+    "frontend",
+    "ui"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "rollup": "^4.60.0",
+    "tslib": "^2.8.1",
+    "typescript": "^6.0.2"
+  }
+}
