@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-03-25
+
+### Added
+
+- **Custom Easing Curves**: Support for passing a `cubic-bezier` array (e.g., `[0.34, 1.56, 0.64, 1]`) to the `easing` option.
+- **Easing Functions**: Support for passing a custom JavaScript function `(t: number) => number` to the `easing` option for complete control over animation timing.
+- **New Physics Presets**: Added `soft-spring` and `heavy-bounce` easing presets.
+- **HTML Data Attribute Support**: Added support for parsing JSON-style arrays in `data-sa-easing` (e.g., `data-sa-easing="[0.1, 0.7, 1.0, 0.1]"`).
+
+### Changed
+
+- Updated `EasingType` to include `number[]` and `(t: number) => number`.
+- Refactored `runAnimation` to handle custom easing functions by generating intermediate keyframes.
+- Enhanced `resolveEasing` to handle array-based cubic-bezier definitions.
+
 ## [1.2.0] - 2025-03-25
 
 ### Added
@@ -21,11 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stagger Bug**: Fixed an issue where `stagger` animation indices were incorrectly calculated when DOM elements were added dynamically.
 - **Type Safety**: Improved TypeScript definitions for better developer experience.
 
-### Changed
-
-- Updated `AnimateOptions` and `ScrollAnimateConfig` to include `once` and `offset`.
-- Refactored `IntersectionObserver` logic to handle offsets via `rootMargin`.
-
 ## [1.1.0] - 2025-03-25
 
 ### Added
@@ -35,24 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scroll Progress Listener**: New `onProgress` callback that provides real-time scroll progress (0 to 1) for an element.
 - **New Animation Presets**: Added `skew-in`, `scale-x`, `scale-y`.
 - **Threshold Array Support**: `threshold` option now accepts an array of numbers for more granular progress tracking.
-- **Improved React Hooks**: `useScrollAnimate` and `useScrollStagger` now fully support `parallax` and `onProgress`.
-- **Improved Vue Composables**: `useScrollAnimate` now fully supports `parallax` and `onProgress`.
 
 ## [1.0.0] - 2025-03-25
 
 ### Added
 
 - Initial release of `use-scroll-animate`.
-- 16 built-in animation presets: `fade-in`, `fade-in-up`, `fade-in-down`, `fade-in-left`, `fade-in-right`, `zoom-in`, `zoom-out`, `flip-x`, `flip-y`, `slide-up`, `slide-down`, `slide-left`, `slide-right`, `bounce`, `rotate-in`, `blur-in`.
-- Core `ScrollAnimate` singleton with `init()`, `observe()`, `unobserve()`, `animate()`, `destroy()`, `refresh()`, and `configure()` methods.
-- HTML `data-sa` attribute API for zero-JS usage.
-- React integration via `createReactHooks()` factory, providing `useScrollAnimate` and `useScrollStagger` hooks.
-- Vue 3 integration via `createVueComposables()` factory, providing `useScrollAnimate` composable.
-- Custom animation support via keyframe objects.
-- `spring` easing preset (`cubic-bezier(0.34, 1.56, 0.64, 1)`).
-- Stagger animation support for sibling elements.
-- `onStart`, `onComplete`, `onEnter`, `onLeave` lifecycle callbacks.
-- Full TypeScript support with comprehensive type definitions.
-- Automatic `prefers-reduced-motion` detection and respect.
+- 16 built-in animation presets.
+- Core `ScrollAnimate` singleton.
+- HTML `data-sa` attribute API.
+- React and Vue 3 integrations.
 - Zero dependencies.
 - ~2.9KB gzipped UMD bundle.

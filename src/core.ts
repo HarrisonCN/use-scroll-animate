@@ -10,6 +10,7 @@ import type {
   ScrollAnimateConfig,
   ScrollAnimateInstance,
   ParallaxOptions,
+  EasingType,
 } from './types';
 import { resolvePreset, resolveEasing } from './presets';
 
@@ -61,7 +62,10 @@ function parseDataAttributes(el: Element, config: Required<ScrollAnimateConfig>)
   }
   if (dataset.saDuration) opts.duration = parseInt(dataset.saDuration, 10);
   if (dataset.saDelay) opts.delay = parseInt(dataset.saDelay, 10);
-  if (dataset.saEasing) opts.easing = dataset.saEasing;
+  if (dataset.saEasing) {
+    const e = dataset.saEasing;
+    opts.easing = e.startsWith('[') ? JSON.parse(e) : e;
+  }
   if (dataset.saThreshold) {
     const t = dataset.saThreshold;
     opts.threshold = t.includes(',') ? t.split(',').map(parseFloat) : parseFloat(t);
@@ -139,7 +143,16 @@ function runAnimation(
   const { animation, duration, delay, easing, stagger, onStart, onComplete } = opts;
   const totalDelay = delay + staggerIndex * stagger;
   const preset = resolvePreset(animation);
-  const easingValue = resolveEasing(easing);
+  
+  let easingValue: string;
+  let customEasingFn: ((t: number) => number) | null = null;
+
+  if (typeof easing === 'function') {
+    easingValue = 'linear';
+    customEasingFn = easing;
+  } else {
+    easingValue = resolveEasing(easing);
+  }
 
   if (config.useClassNames) {
     if (totalDelay > 0) {
@@ -157,6 +170,50 @@ function runAnimation(
     preset.to as Keyframe,
   ];
 
+  // If custom easing function is provided, we generate more keyframes to approximate it
+  if (customEasingFn) {
+    const steps = 30;
+    const generatedKeyframes: Keyframe[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const easedT = customEasingFn(t);
+      const currentKeyframe: Keyframe = {};
+      
+      // Interpolate each property
+      Object.keys(preset.from).forEach(prop => {
+        const fromVal = preset.from[prop];
+        const toVal = preset.to[prop];
+        
+        if (typeof fromVal === 'number' && typeof toVal === 'number') {
+          currentKeyframe[prop] = fromVal + (toVal - fromVal) * easedT;
+        } else if (prop === 'transform' && typeof fromVal === 'string' && typeof toVal === 'string') {
+          // Simple transform interpolation (only works for same-type transforms)
+          // For complex transforms, this is a simplified approximation
+          if (fromVal.includes('translateY') && toVal.includes('translateY')) {
+            const fromY = parseFloat(fromVal.match(/-?\d+/)?.[0] || '0');
+            const toY = parseFloat(toVal.match(/-?\d+/)?.[0] || '0');
+            currentKeyframe[prop] = `translateY(${fromY + (toY - fromY) * easedT}px)`;
+          } else {
+            currentKeyframe[prop] = t < 0.5 ? fromVal : toVal;
+          }
+        } else {
+          currentKeyframe[prop] = t < 0.5 ? fromVal : toVal;
+        }
+      });
+      generatedKeyframes.push(currentKeyframe);
+    }
+    
+    const anim = el.animate(generatedKeyframes, {
+      duration,
+      delay: totalDelay,
+      easing: 'linear',
+      fill: 'both',
+    });
+    onStart(el);
+    anim.onfinish = () => onComplete(el);
+    return;
+  }
+
   const timing: KeyframeAnimationOptions = {
     duration,
     delay: totalDelay,
@@ -164,13 +221,11 @@ function runAnimation(
     fill: 'both',
   };
 
-  // Check if Web Animations API is supported
   if (typeof el.animate === 'function') {
     const anim = el.animate(keyframes, timing);
     onStart(el);
     anim.onfinish = () => onComplete(el);
   } else {
-    // Fallback for older browsers
     (el as HTMLElement).style.opacity = '1';
     (el as HTMLElement).style.transform = 'none';
     onStart(el);
@@ -205,7 +260,6 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
   const registry = new Map<Element, AnimatedElement>();
 
   function createObserver(opts: Required<AnimateOptions>): IntersectionObserver {
-    // Handle offset by adjusting rootMargin
     const rootMargin = opts.offset !== 0 
       ? `${opts.rootMargin.split(' ')[0]} 0px -${opts.offset}px 0px`
       : opts.rootMargin;
@@ -223,7 +277,6 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
               const parent = entry.target.parentElement;
               let staggerIndex = 0;
               if (parent && opts.stagger > 0) {
-                // BUG FIX: Use a more robust way to find index among siblings that are also observed
                 const siblings = Array.from(parent.children).filter((c) => registry.has(c));
                 staggerIndex = siblings.indexOf(entry.target);
               }
@@ -237,11 +290,9 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
 
               record.animated = true;
               
-              // Handle 'once' functionality
               if (opts.once) {
                 record.observer.unobserve(entry.target);
                 record.progressObserver?.unobserve(entry.target);
-                // We don't delete from registry yet to allow other potential interactions
               }
             }
           } else {
@@ -321,7 +372,7 @@ export function createScrollAnimate(userConfig: ScrollAnimateConfig = {}): Scrol
       elements.forEach((el) => {
         const record = registry.get(el);
         if (record) {
-          record.observer.disconnect(); // BUG FIX: Use disconnect for better cleanup
+          record.observer.disconnect();
           record.progressObserver?.disconnect();
           registry.delete(el);
         }

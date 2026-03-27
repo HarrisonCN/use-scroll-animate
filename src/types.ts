@@ -36,6 +36,10 @@ export type EasingType =
   | 'ease-out'
   | 'ease-in-out'
   | 'spring'
+  | 'soft-spring'
+  | 'heavy-bounce'
+  | [number, number, number, number] // cubic-bezier array
+  | ((t: number) => number) // custom easing function
   | string;
 
 /** Keyframe definition for custom animations */

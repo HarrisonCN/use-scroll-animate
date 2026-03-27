@@ -3,7 +3,7 @@
  * Defines keyframes for all built-in animation presets
  */
 
-import type { AnimationPreset, CustomAnimation } from './types';
+import type { AnimationPreset, CustomAnimation, EasingType } from './types';
 
 type KeyframeMap = {
   from: Record<string, string | number>;
@@ -141,8 +141,23 @@ export const EASING_MAP: Record<string, string> = {
   'ease-out': 'ease-out',
   'ease-in-out': 'ease-in-out',
   spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  'soft-spring': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+  'heavy-bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
 };
 
-export function resolveEasing(easing: string): string {
-  return EASING_MAP[easing] ?? easing;
+export function resolveEasing(easing: EasingType): string {
+  if (typeof easing === 'string') {
+    return EASING_MAP[easing] ?? easing;
+  }
+  if (Array.isArray(easing)) {
+    return `cubic-bezier(${easing.join(', ')})`;
+  }
+  if (typeof easing === 'function') {
+    // Web Animations API doesn't support functions directly, 
+    // but we can generate a step-based cubic-bezier approximation or 
+    // use it for progress-based animations. 
+    // For simplicity in v1.3.0, we'll return linear and handle function in core.
+    return 'linear'; 
+  }
+  return 'ease';
 }

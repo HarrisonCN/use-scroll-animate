@@ -136,10 +136,25 @@ const EASING_MAP = {
     'ease-out': 'ease-out',
     'ease-in-out': 'ease-in-out',
     spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    'soft-spring': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+    'heavy-bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
 };
 function resolveEasing(easing) {
     var _a;
-    return (_a = EASING_MAP[easing]) !== null && _a !== void 0 ? _a : easing;
+    if (typeof easing === 'string') {
+        return (_a = EASING_MAP[easing]) !== null && _a !== void 0 ? _a : easing;
+    }
+    if (Array.isArray(easing)) {
+        return `cubic-bezier(${easing.join(', ')})`;
+    }
+    if (typeof easing === 'function') {
+        // Web Animations API doesn't support functions directly, 
+        // but we can generate a step-based cubic-bezier approximation or 
+        // use it for progress-based animations. 
+        // For simplicity in v1.3.0, we'll return linear and handle function in core.
+        return 'linear';
+    }
+    return 'ease';
 }
 
 /**
@@ -185,8 +200,10 @@ function parseDataAttributes(el, config) {
         opts.duration = parseInt(dataset.saDuration, 10);
     if (dataset.saDelay)
         opts.delay = parseInt(dataset.saDelay, 10);
-    if (dataset.saEasing)
-        opts.easing = dataset.saEasing;
+    if (dataset.saEasing) {
+        const e = dataset.saEasing;
+        opts.easing = e.startsWith('[') ? JSON.parse(e) : e;
+    }
     if (dataset.saThreshold) {
         const t = dataset.saThreshold;
         opts.threshold = t.includes(',') ? t.split(',').map(parseFloat) : parseFloat(t);
@@ -257,7 +274,15 @@ function runAnimation(el, opts, config, staggerIndex = 0) {
     const { animation, duration, delay, easing, stagger, onStart, onComplete } = opts;
     const totalDelay = delay + staggerIndex * stagger;
     const preset = resolvePreset(animation);
-    const easingValue = resolveEasing(easing);
+    let easingValue;
+    let customEasingFn = null;
+    if (typeof easing === 'function') {
+        easingValue = 'linear';
+        customEasingFn = easing;
+    }
+    else {
+        easingValue = resolveEasing(easing);
+    }
     if (config.useClassNames) {
         if (totalDelay > 0) {
             el.style.animationDelay = `${totalDelay}ms`;
@@ -272,20 +297,62 @@ function runAnimation(el, opts, config, staggerIndex = 0) {
         preset.from,
         preset.to,
     ];
+    // If custom easing function is provided, we generate more keyframes to approximate it
+    if (customEasingFn) {
+        const steps = 30;
+        const generatedKeyframes = [];
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const easedT = customEasingFn(t);
+            const currentKeyframe = {};
+            // Interpolate each property
+            Object.keys(preset.from).forEach(prop => {
+                var _a, _b;
+                const fromVal = preset.from[prop];
+                const toVal = preset.to[prop];
+                if (typeof fromVal === 'number' && typeof toVal === 'number') {
+                    currentKeyframe[prop] = fromVal + (toVal - fromVal) * easedT;
+                }
+                else if (prop === 'transform' && typeof fromVal === 'string' && typeof toVal === 'string') {
+                    // Simple transform interpolation (only works for same-type transforms)
+                    // For complex transforms, this is a simplified approximation
+                    if (fromVal.includes('translateY') && toVal.includes('translateY')) {
+                        const fromY = parseFloat(((_a = fromVal.match(/-?\d+/)) === null || _a === void 0 ? void 0 : _a[0]) || '0');
+                        const toY = parseFloat(((_b = toVal.match(/-?\d+/)) === null || _b === void 0 ? void 0 : _b[0]) || '0');
+                        currentKeyframe[prop] = `translateY(${fromY + (toY - fromY) * easedT}px)`;
+                    }
+                    else {
+                        currentKeyframe[prop] = t < 0.5 ? fromVal : toVal;
+                    }
+                }
+                else {
+                    currentKeyframe[prop] = t < 0.5 ? fromVal : toVal;
+                }
+            });
+            generatedKeyframes.push(currentKeyframe);
+        }
+        const anim = el.animate(generatedKeyframes, {
+            duration,
+            delay: totalDelay,
+            easing: 'linear',
+            fill: 'both',
+        });
+        onStart(el);
+        anim.onfinish = () => onComplete(el);
+        return;
+    }
     const timing = {
         duration,
         delay: totalDelay,
         easing: easingValue,
         fill: 'both',
     };
-    // Check if Web Animations API is supported
     if (typeof el.animate === 'function') {
         const anim = el.animate(keyframes, timing);
         onStart(el);
         anim.onfinish = () => onComplete(el);
     }
     else {
-        // Fallback for older browsers
         el.style.opacity = '1';
         el.style.transform = 'none';
         onStart(el);
@@ -319,7 +386,6 @@ function createScrollAnimate(userConfig = {}) {
     let config = { ...DEFAULT_CONFIG, ...userConfig };
     const registry = new Map();
     function createObserver(opts) {
-        // Handle offset by adjusting rootMargin
         const rootMargin = opts.offset !== 0
             ? `${opts.rootMargin.split(' ')[0]} 0px -${opts.offset}px 0px`
             : opts.rootMargin;
@@ -335,7 +401,6 @@ function createScrollAnimate(userConfig = {}) {
                         const parent = entry.target.parentElement;
                         let staggerIndex = 0;
                         if (parent && opts.stagger > 0) {
-                            // BUG FIX: Use a more robust way to find index among siblings that are also observed
                             const siblings = Array.from(parent.children).filter((c) => registry.has(c));
                             staggerIndex = siblings.indexOf(entry.target);
                         }
@@ -347,11 +412,9 @@ function createScrollAnimate(userConfig = {}) {
                             entry.target.style.transform = '';
                         }
                         record.animated = true;
-                        // Handle 'once' functionality
                         if (opts.once) {
                             record.observer.unobserve(entry.target);
                             (_a = record.progressObserver) === null || _a === void 0 ? void 0 : _a.unobserve(entry.target);
-                            // We don't delete from registry yet to allow other potential interactions
                         }
                     }
                 }
@@ -420,7 +483,7 @@ function createScrollAnimate(userConfig = {}) {
                 var _a;
                 const record = registry.get(el);
                 if (record) {
-                    record.observer.disconnect(); // BUG FIX: Use disconnect for better cleanup
+                    record.observer.disconnect();
                     (_a = record.progressObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
                     registry.delete(el);
                 }
